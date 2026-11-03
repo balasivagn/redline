@@ -1,0 +1,9 @@
+node_modules
+.output
+.wxt
+.keys/dev-key.pem
+helper/dist
+*.log
+tests/e2e/artifacts
+redline-dev
+redline-extension
