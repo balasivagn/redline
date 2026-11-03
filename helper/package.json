@@ -1,0 +1,12 @@
+{
+  "name": "redline-helper",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Redline local voice helper (Chrome native messaging host com.redline.helper)",
+  "scripts": {
+    "build": "bun build --compile src/main.ts --outfile dist/redline-helper",
+    "test": "bun test",
+    "typecheck": "tsc -p . --noEmit"
+  }
+}

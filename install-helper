@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# Build the Redline voice helper and register it as the Chrome native messaging host
+# "com.redline.helper". Safe to re-run.   Usage: install-helper [--uninstall] [--help]
+set -euo pipefail
+
+HOST_NAME="com.redline.helper"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BIN="$ROOT/helper/dist/redline-helper"
+APP_SUPPORT="$HOME/Library/Application Support"
+
+# Browser -> its profile folder (the manifest goes in <folder>/NativeMessagingHosts).
+# Chrome is always installed to; the others only when their folder already exists.
+BROWSER_NAMES=("Chrome" "Chrome Beta" "Chrome Canary" "Chromium" "Brave")
+BROWSER_DIRS=(
+  "$APP_SUPPORT/Google/Chrome"
+  "$APP_SUPPORT/Google/Chrome Beta"
+  "$APP_SUPPORT/Google/Chrome Canary"
+  "$APP_SUPPORT/Chromium"
+  "$APP_SUPPORT/BraveSoftware/Brave-Browser"
+)
+
+usage() {
+  cat <<USAGE
+Usage: install-helper [--uninstall]
+
+  (default)     build helper/dist/redline-helper and write $HOST_NAME.json for
+                Chrome (and Beta/Canary/Chromium/Brave when they are installed)
+  --uninstall   remove those manifests (the built binary and ~/.redline are kept)
+USAGE
+}
+
+json_escape() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+
+MODE="install"
+case "${1:-}" in
+  "") ;;
+  --uninstall) MODE="uninstall" ;;
+  -h|--help) usage; exit 0 ;;
+  *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
+esac
+
+if [ "$MODE" = "uninstall" ]; then
+  removed=0
+  for i in "${!BROWSER_NAMES[@]}"; do
+    manifest="${BROWSER_DIRS[$i]}/NativeMessagingHosts/$HOST_NAME.json"
+    if [ -f "$manifest" ]; then
+      rm -f "$manifest"
+      echo "removed  ${BROWSER_NAMES[$i]}: $manifest"
+      removed=$((removed + 1))
+    fi
+  done
+  [ "$removed" -eq 0 ] && echo "nothing to remove"
+  echo "kept: $BIN and ~/.redline (delete manually if you want them gone)"
+  exit 0
+fi
+
+# ---- install -----------------------------------------------------------------
+if ! command -v bun >/dev/null 2>&1; then
+  echo "error: bun is required to build the helper (https://bun.sh)" >&2
+  exit 1
+fi
+
+ID_FILE="$ROOT/.keys/extension-id.txt"
+if [ ! -f "$ID_FILE" ]; then
+  echo "error: $ID_FILE not found" >&2
+  exit 1
+fi
+EXT_ID="$(tr -d '[:space:]' < "$ID_FILE")"
+if ! [[ "$EXT_ID" =~ ^[a-p]{32}$ ]]; then
+  echo "error: '$EXT_ID' in $ID_FILE is not a valid Chrome extension id" >&2
+  exit 1
+fi
+
+echo "building $BIN"
+mkdir -p "$ROOT/helper/dist"
+# --use-system-ca: trust the macOS keychain so model downloads work behind VPN/WARP TLS inspection.
+# The no-autoload flags stop the host from reading stray .env/bunfig files from Chrome's cwd.
+bun build --compile \
+  --compile-exec-argv="--use-system-ca" \
+  --no-compile-autoload-dotenv --no-compile-autoload-bunfig \
+  "$ROOT/helper/src/main.ts" --outfile "$BIN" >/dev/null
+chmod +x "$BIN"
+echo "built    $BIN"
+
+installed=0
+for i in "${!BROWSER_NAMES[@]}"; do
+  name="${BROWSER_NAMES[$i]}"
+  dir="${BROWSER_DIRS[$i]}"
+  if [ "$name" != "Chrome" ] && [ ! -d "$dir" ]; then
+    continue
+  fi
+  target="$dir/NativeMessagingHosts"
+  mkdir -p "$target"
+  manifest="$target/$HOST_NAME.json"
+  cat > "$manifest" <<JSON
+{
+  "name": "$HOST_NAME",
+  "description": "Redline local voice helper (speech-to-text via whisper.cpp / parakeet)",
+  "path": "$(json_escape "$BIN")",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://$EXT_ID/"]
+}
+JSON
+  echo "wrote    $name: $manifest"
+  installed=$((installed + 1))
+done
+
+echo
+echo "Redline helper installed for $installed browser(s); extension id $EXT_ID."
+echo "Reload the Redline extension (or reopen Settings -> Voice) and it will find the helper."
