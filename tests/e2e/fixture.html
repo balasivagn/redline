@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Pricing — Acme</title>
+<style>
+  html { font-size: 62.5%; } /* hostile rem base: Redline UI must not shrink */
+  body { font: 16px/1.5 system-ui; margin: 40px; background: #f6f7f9; }
+  .pricing { display: flex; gap: 24px; }
+  .card { background: #fff; border-radius: 12px; padding: 24px; width: 200px; box-shadow: 0 1px 3px #0002; }
+  .price { font-size: 28px; font-weight: 700; }
+  button { padding: 8px 16px; }
+</style></head>
+<body>
+<main>
+  <h1>Pricing</h1>
+  <section class="pricing">
+    <div class="card card--starter" data-testid="plan-starter"><h2>Starter</h2><p class="price">$9/mo</p><button onclick="window.__clicks=(window.__clicks||0)+1">Choose</button></div>
+    <div class="card card--pro"><h2>Pro</h2><p class="price">$29/mo</p><button onclick="window.__clicks=(window.__clicks||0)+1">Choose</button></div>
+    <div class="card card--business"><h2>Business</h2><p class="price">$99/mo</p><button>Choose</button></div>
+  </section>
+  <p><a href="/checkout" id="spa-link">Checkout (SPA)</a></p>
+</main>
+<script>
+  document.getElementById('spa-link').addEventListener('click', (e) => {
+    e.preventDefault(); history.pushState({}, '', '/checkout'); document.querySelector('h1').textContent = 'Checkout';
+  });
+</script>
+</body></html>
