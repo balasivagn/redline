@@ -1,0 +1,15 @@
+/* Overlay-only keyframes (the Tailwind theme lives in ../shared/styles.css). */
+@keyframes rl-flash {
+  0% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.9); scale: 1; }
+  50% { box-shadow: 0 0 0 14px rgba(229, 72, 77, 0); scale: 1.35; }
+  100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0); scale: 1; }
+}
+.rl-flash { animation: rl-flash 0.7s ease-out 2; }
+div.rl-flash { animation-name: rl-flash-box; }
+@keyframes rl-flash-box {
+  0%, 100% { background-color: rgba(229, 72, 77, 0.05); }
+  50% { background-color: rgba(229, 72, 77, 0.35); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rl-flash { animation: none; }
+}

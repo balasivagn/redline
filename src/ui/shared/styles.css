@@ -1,0 +1,55 @@
+/*
+ * Shared Tailwind entry for every Redline surface (content overlay in a shadow root, and
+ * extension pages). Units are px on purpose: inside a host page, `rem` follows the PAGE's
+ * <html> font-size (e.g. 62.5%), which would shrink our UI.
+ */
+@import 'tailwindcss';
+
+@theme {
+  --spacing: 4px;
+  --text-xs: 11px;   --text-xs--line-height: 16px;
+  --text-sm: 13px;   --text-sm--line-height: 18px;
+  --text-base: 14px; --text-base--line-height: 20px;
+  --text-lg: 16px;   --text-lg--line-height: 22px;
+  --text-xl: 20px;   --text-xl--line-height: 28px;
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 10px; --radius-xl: 14px;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Redline tokens */
+  --color-rl-ink: #111214;       /* toolbar / drawer surface */
+  --color-rl-ink-2: #1b1d21;     /* raised surface */
+  --color-rl-line: #2c2f36;      /* hairlines on dark */
+  --color-rl-text: #eceef2;
+  --color-rl-muted: #9aa0ab;
+  --color-rl-accent: #e5484d;    /* redline red: pins, active mode, primary */
+  --color-rl-accent-2: #ff6369;
+  --color-rl-warn: #f5a524;      /* detached */
+  --color-rl-ok: #30a46c;
+  --color-rl-paper: #ffffff;     /* comment box surface */
+  --color-rl-paper-text: #17181b;
+}
+
+/* Tailwind v4 registers some variables with @property, which does not apply inside shadow
+ * roots. Provide initial values so shadows/rings/transforms/borders still work there. */
+@layer base {
+  :host, *, ::before, ::after, ::backdrop {
+    --tw-border-style: solid;
+    --tw-shadow: 0 0 #0000; --tw-shadow-color: initial; --tw-shadow-alpha: 100%;
+    --tw-inset-shadow: 0 0 #0000; --tw-inset-shadow-color: initial; --tw-inset-shadow-alpha: 100%;
+    --tw-ring-color: initial; --tw-ring-shadow: 0 0 #0000; --tw-inset-ring-color: initial;
+    --tw-inset-ring-shadow: 0 0 #0000; --tw-ring-inset: initial;
+    --tw-ring-offset-width: 0px; --tw-ring-offset-color: #fff; --tw-ring-offset-shadow: 0 0 #0000;
+    --tw-translate-x: 0; --tw-translate-y: 0; --tw-translate-z: 0;
+    --tw-scale-x: 1; --tw-scale-y: 1; --tw-scale-z: 1;
+    --tw-rotate-x: initial; --tw-rotate-y: initial; --tw-rotate-z: initial;
+    --tw-skew-x: initial; --tw-skew-y: initial;
+    --tw-font-weight: initial; --tw-leading: initial; --tw-tracking: initial;
+    --tw-outline-style: solid; --tw-backdrop-blur: initial; --tw-blur: initial;
+  }
+  /* Literal font stack: theme variables are only emitted when used, and `all: initial` would
+   * otherwise leave the shadow root on the browser's default serif font. */
+  :host { all: initial; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 14px; line-height: 20px; color: var(--color-rl-text); }
+  /* WXT's shadow root contains its own <html>/<body>; set the stack there too. */
+  html, body, :host > div { font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 14px; line-height: 20px; }
+}
