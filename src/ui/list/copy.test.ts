@@ -11,6 +11,8 @@ vi.mock('../../core/export', () => ({
 import { rpc } from '../../core/rpc';
 import {
   bundleFileName,
+  copyAnnotations,
+  shotWarning,
   copiedMessage,
   dataUrlToBlob,
   defaultScope,
@@ -93,5 +95,30 @@ describe('formatting helpers', () => {
     const blob = dataUrlToBlob('data:image/png;base64,iVBORw0K');
     expect(blob.type).toBe('image/png');
     expect(Array.from(new Uint8Array(await blob.arrayBuffer()))).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]);
+  });
+});
+
+describe('screenshot delivery warnings', () => {
+  const withShot = (id: string, shot: { width: number; height: number; path?: string }) =>
+    makeAnnotation({ id, number: 1, screenshot: { shotId: 's', ...shot } } as never);
+
+  it('is silent when every screenshot has a saved file of a sane size', () => {
+    expect(shotWarning([withShot('a', { width: 800, height: 600, path: '/x/a.png' }), a1], 'markdown')).toBeUndefined();
+  });
+  it('warns when the image has no saved file (agent would get text only)', () => {
+    expect(shotWarning([withShot('a', { width: 800, height: 600 })], 'markdown')).toMatch(/no saved file.*text only/);
+  });
+  it('warns on a blank / 1 px capture even when a path exists', () => {
+    expect(shotWarning([withShot('a', { width: 1, height: 1, path: '/x/a.png' })], 'markdown')).toMatch(/blank or too small/);
+  });
+  it('JSON copies are not flagged', () => {
+    expect(shotWarning([withShot('a', { width: 800, height: 600 })], 'json')).toBeUndefined();
+  });
+  it('copyAnnotations still copies, then fails loudly', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    await expect(copyAnnotations([withShot('a', { width: 800, height: 600 })], 'markdown')).rejects.toThrow(/text only/);
+    expect(writeText).toHaveBeenCalledWith('MD(1)');
+    await expect(copyAnnotations([a1], 'markdown')).resolves.toBe('Copied 1 comment as Markdown');
   });
 });

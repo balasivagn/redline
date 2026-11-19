@@ -5,6 +5,9 @@ import { rpc } from '../../core/rpc';
 import type { CommentSource } from './text';
 import { clampRectToViewport } from './geometry';
 
+/** Same floor the background applies: smaller than this is a failed capture. */
+export const SHOT_MIN_SIDE = 16;
+
 export interface BuildArgs {
   id: string;
   now: string;
@@ -145,10 +148,13 @@ export async function captureShot(
     // Give the compositor time to present the hidden state before the tab is captured.
     await new Promise<void>((r) => setTimeout(r, 60));
     const res = await withTimeout(
-      rpc('shot/capture', { rect: clipped, dpr: window.devicePixelRatio || 1 }),
+      rpc('shot/capture', { rect: clipped, dpr: window.devicePixelRatio || 1, viewport }),
       SHOT_TIMEOUT_MS,
       'the screenshot took too long',
     );
+    if (!res?.shotId || !(res.width >= SHOT_MIN_SIDE && res.height >= SHOT_MIN_SIDE)) {
+      throw new Error(`the screenshot came out ${res?.width ?? 0}×${res?.height ?? 0} px (too small to use)`);
+    }
     return { shotId: res.shotId, width: res.width, height: res.height, ...(res.path ? { path: res.path } : {}) };
   } finally {
     host.style.visibility = prev;

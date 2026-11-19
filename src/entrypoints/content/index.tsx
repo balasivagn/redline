@@ -2,6 +2,7 @@ import '../../ui/shared/styles.css';
 import '../../ui/overlay/overlay.css';
 import { mountOverlay } from '../../ui/overlay/mount';
 import { keepOnTop } from '../../ui/overlay/keepOnTop';
+import { removeStrayNodes } from '../../ui/overlay/cleanup';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -29,6 +30,7 @@ export default defineContentScript({
           stopKeepOnTop?.();
           stopKeepOnTop = undefined;
           root?.unmount();
+          removeStrayNodes();
           globalThis.__redlineMounted = false;
         },
       });

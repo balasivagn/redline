@@ -28,7 +28,7 @@ export interface RpcMap {
   'ann/restore': { req: { annotations: Annotation[] }; res: { restored: number } };
 
   /** Capture the visible tab and crop to `rect` (viewport CSS px). Sender tab is used. */
-  'shot/capture': { req: { rect: Rect; dpr: number }; res: { shotId: string; width: number; height: number; /** Absolute PNG path, when the helper saved the file. */ path?: string } };
+  'shot/capture': { req: { rect: Rect; dpr: number; /** Page viewport in CSS px, so the crop can use the real bitmap scale. */ viewport?: { width: number; height: number } }; res: { shotId: string; width: number; height: number; /** Absolute PNG path, when the helper saved the file. */ path?: string } };
   'shot/get': { req: { shotId: string }; res: { dataUrl: string } | null };
 
   'settings/get': { req: Record<string, never>; res: Settings };

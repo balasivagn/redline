@@ -43,7 +43,7 @@ export function initBackground(): void {
     helper,
     speech,
     broadcast,
-    captureShot: async ({ windowId, rect, dpr }) => cropDataUrl(await captureVisibleTab(windowId), rect, dpr),
+    captureShot: async ({ windowId, rect, dpr, viewport }) => cropDataUrl(await captureVisibleTab(windowId), rect, dpr, viewport),
     getUrl: (path) => chrome.runtime.getURL(path as never),
     openTab: (url) => chrome.tabs.create({ url }),
     onAnnotationsChanged: (pageKeys) => void badge.updateForPageKeys(pageKeys),

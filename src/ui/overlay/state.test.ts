@@ -112,3 +112,16 @@ describe('overlay mode reducer', () => {
     expect(['pin', 'area', 'editing', 'repin'].every((m) => isIntercepting(m as never))).toBe(true);
   });
 });
+
+describe('leaving a comment never leaves a pick mode half-open', () => {
+  it('cancel from area editing returns to area; escape then drops to the toolbar', () => {
+    let s = run(initialState, { type: 'expand' }, { type: 'setMode', mode: 'area' }, { type: 'beginNew' }, { type: 'endEdit' });
+    expect(s.mode).toBe('area');
+    s = run(s, { type: 'escape' });
+    expect(s).toMatchObject({ mode: 'toolbar', editing: null });
+  });
+  it('closing the drawer keeps no selection mode', () => {
+    const s = run(initialState, { type: 'expand' }, { type: 'setMode', mode: 'area' }, { type: 'openDrawer' }, { type: 'closeDrawer' });
+    expect(s).toMatchObject({ mode: 'toolbar', drawerOpen: false });
+  });
+});

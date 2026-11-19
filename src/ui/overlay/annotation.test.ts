@@ -141,7 +141,7 @@ describe('captureShot', () => {
     const shot = await captureShot(host, { x: -20, y: 10, width: 120, height: 50 }, { width: 1000, height: 800 });
     expect(during).toBe('hidden');
     expect(host.style.visibility).toBe('visible');
-    expect(rpc).toHaveBeenCalledWith('shot/capture', { rect: { x: 0, y: 10, width: 100, height: 50 }, dpr: window.devicePixelRatio || 1 });
+    expect(rpc).toHaveBeenCalledWith('shot/capture', { rect: { x: 0, y: 10, width: 100, height: 50 }, dpr: window.devicePixelRatio || 1, viewport: { width: 1000, height: 800 } });
     expect(shot).toEqual({ shotId: 's9', width: 200, height: 100 });
   });
 
