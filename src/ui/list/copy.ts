@@ -81,8 +81,36 @@ export async function writeClipboard(text: string): Promise<void> {
   if (!ok) throw new Error('Clipboard is not available');
 }
 
+/** Smallest side (px) a stored screenshot may have before it counts as a failed capture. */
+export const MIN_SHOT_SIDE = 16;
+
+/**
+ * Screenshots an agent will not receive when the Markdown is pasted: no saved file path (text
+ * only references a path inside the .zip) or a degenerate size (blank / 1 px capture).
+ */
+export function unsendableShots(annotations: readonly Annotation[]): Annotation[] {
+  return annotations.filter((a) => {
+    const s = a.screenshot;
+    return !!s && (!s.path || s.width < MIN_SHOT_SIDE || s.height < MIN_SHOT_SIDE);
+  });
+}
+
+export function shotWarning(annotations: readonly Annotation[], format: CopyFormat): string | undefined {
+  if (format !== 'markdown') return undefined;
+  const bad = unsendableShots(annotations);
+  if (bad.length === 0) return undefined;
+  const tiny = bad.some((a) => a.screenshot && (a.screenshot.width < MIN_SHOT_SIDE || a.screenshot.height < MIN_SHOT_SIDE));
+  const n = bad.length;
+  return tiny
+    ? `Copied the text, but ${n === 1 ? 'a screenshot is' : `${n} screenshots are`} blank or too small. The agent gets no usable image. Retake it.`
+    : `Copied the text, but ${n === 1 ? 'a screenshot has' : `${n} screenshots have`} no saved file, so the agent gets text only. Install the Redline helper to save screenshots.`;
+}
+
+/** Copies to the clipboard; throws a warning (after copying) when an agent would get text without its image. */
 export async function copyAnnotations(annotations: Annotation[], format: CopyFormat): Promise<string> {
   await writeClipboard(formatAnnotations(annotations, format));
+  const warning = shotWarning(annotations, format);
+  if (warning) throw new Error(warning);
   return copiedMessage(annotations.length, format);
 }
 

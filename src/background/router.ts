@@ -20,7 +20,7 @@ export interface RouterDeps {
   speech: SpeechController;
   broadcast(event: EventInput): void | Promise<void>;
   /** Grab the visible tab and crop it. */
-  captureShot(args: { windowId: number; rect: RpcMap['shot/capture']['req']['rect']; dpr: number }): Promise<{ blob: Blob; width: number; height: number }>;
+  captureShot(args: { windowId: number; rect: RpcMap['shot/capture']['req']['rect']; dpr: number; viewport?: { width: number; height: number } }): Promise<{ blob: Blob; width: number; height: number }>;
   getUrl(path: string): string;
   openTab(url: string): Promise<unknown>;
   /** Called after annotation writes (badge refresh). */
@@ -114,10 +114,10 @@ export function createRouter(deps: RouterDeps) {
       return { restored };
     },
 
-    async 'shot/capture'({ rect, dpr }, sender) {
+    async 'shot/capture'({ rect, dpr, viewport }, sender) {
       const windowId = sender.tab?.windowId;
       if (windowId === undefined) throw new Error('Screenshots need a browser tab.');
-      const { blob, width, height } = await deps.captureShot({ windowId, rect, dpr });
+      const { blob, width, height } = await deps.captureShot({ windowId, rect, dpr, ...(viewport ? { viewport } : {}) });
       const shotId = await shots.put(blob);
       const path = await saveShotFile(blob, shotId, sender.tab?.url ?? sender.url);
       return { shotId, width, height, ...(path ? { path } : {}) };

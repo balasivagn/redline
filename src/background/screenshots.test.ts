@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeCropBox, computeCropPlan, createCaptureQueue } from './screenshots';
+import { assertUsableShotSize, computeCropBox, computeCropPlan, createCaptureQueue, effectiveDpr } from './screenshots';
 
 describe('computeCropBox', () => {
   it('scales by dpr', () => {
@@ -76,5 +76,25 @@ describe('capture queue', () => {
     await expect(capture(1)).rejects.toThrow('No window');
     expect(await capture(1)).toBe('ok');
     expect(calls).toBe(2);
+  });
+});
+
+describe('capture sanity', () => {
+  it('rejects blank / 1 px results and accepts normal ones', () => {
+    expect(() => assertUsableShotSize(1, 1)).toThrow(/too small/);
+    expect(() => assertUsableShotSize(500, 3)).toThrow(/too small/);
+    expect(() => assertUsableShotSize(Number.NaN, 200)).toThrow();
+    expect(() => assertUsableShotSize(300, 200)).not.toThrow();
+  });
+  it('measures the bitmap scale from the viewport instead of trusting devicePixelRatio', () => {
+    expect(effectiveDpr(3233, 2, { width: 3233 })).toBe(1);
+    expect(effectiveDpr(2560, 1, { width: 1280 })).toBe(2);
+    expect(effectiveDpr(2560, 2)).toBe(2);
+    expect(effectiveDpr(2560, 0)).toBe(1);
+  });
+  it('a wide 3233px viewport @1x crops the 1496×852 area with padding, not 1 px', () => {
+    const p = computeCropPlan({ x: 800, y: 200, width: 1496, height: 852 }, effectiveDpr(3233, 2, { width: 3233 }), 3233, 1296);
+    expect(p.width).toBeGreaterThan(1000);
+    expect(p.height).toBeGreaterThan(800);
   });
 });

@@ -10,6 +10,26 @@ export function computeCropBox(rect: Rect, dpr: number, bitmapW: number, bitmapH
 }
 
 export const SHOT_PADDING_CSS_PX = 60;
+/** A screenshot smaller than this on either side is a failed capture (blank / 1 px crop), not a picture. */
+export const SHOT_MIN_SIDE = 16;
+
+/** Throws when a captured/cropped image is too small to be useful. */
+export function assertUsableShotSize(width: number, height: number): void {
+  if (!(width >= SHOT_MIN_SIDE && height >= SHOT_MIN_SIDE)) {
+    throw new Error(`The screenshot came out ${Math.round(width)}×${Math.round(height)} px, which is too small to use. Try again.`);
+  }
+}
+
+/**
+ * Device-pixel ratio of the captured bitmap relative to the page's CSS viewport. Prefers measuring
+ * (bitmap width / viewport width) over `window.devicePixelRatio`, which can disagree with the
+ * bitmap under browser zoom or display scaling and would scale the crop box wrongly.
+ */
+export function effectiveDpr(bitmapW: number, dpr: number, viewport?: { width: number }): number {
+  if (viewport && viewport.width > 0 && bitmapW > 0) return bitmapW / viewport.width;
+  return dpr > 0 ? dpr : 1;
+}
+
 export const SHOT_MAX_SIDE = 1600;
 export const SHOT_OUTLINE_CSS_PX = 2;
 export const SHOT_OUTLINE_COLOR = '#e5484d';
@@ -79,10 +99,19 @@ export function computeCropPlan(
  * Crop a captured PNG data URL around `rect` (viewport CSS px) with 60 px of context, outline the
  * original rect in red, and cap the longest side at 1600 px. Runs in the service worker.
  */
-export async function cropDataUrl(dataUrl: string, rect: Rect, dpr: number): Promise<{ blob: Blob; width: number; height: number }> {
+export async function cropDataUrl(
+  dataUrl: string,
+  rect: Rect,
+  dpr: number,
+  viewport?: { width: number; height: number },
+): Promise<{ blob: Blob; width: number; height: number }> {
   const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
   try {
-    const plan = computeCropPlan(rect, dpr, bitmap.width, bitmap.height);
+    if (bitmap.width < SHOT_MIN_SIDE || bitmap.height < SHOT_MIN_SIDE) {
+      throw new Error(`The browser returned an empty capture (${bitmap.width}×${bitmap.height} px).`);
+    }
+    const plan = computeCropPlan(rect, effectiveDpr(bitmap.width, dpr, viewport), bitmap.width, bitmap.height);
+    assertUsableShotSize(plan.width, plan.height);
     const { sx, sy, sw, sh } = plan.src;
     const canvas = new OffscreenCanvas(plan.width, plan.height);
     const ctx = canvas.getContext('2d');
@@ -100,6 +129,7 @@ export async function cropDataUrl(dataUrl: string, rect: Rect, dpr: number): Pro
       plan.outline.height * plan.scale + plan.lineWidth,
     );
     const blob = await canvas.convertToBlob({ type: 'image/png' });
+    if (blob.size < 100) throw new Error('The screenshot came out empty. Try again.');
     return { blob, width: plan.width, height: plan.height };
   } finally {
     bitmap.close();

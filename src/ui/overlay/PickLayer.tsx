@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { describeElement, detectFramework } from '../../core/capture';
 import type { FrameworkInfo, Rect } from '../../core/schema';
 import { eventInHost, useHost } from './context';
+import { CURSOR_STYLE_ID } from './cleanup';
 import { isBigEnough, normalizeRect, positionBox, toRect } from './geometry';
 import { childToward, containingElement, parentOf, pickAt } from './pick';
 import { useViewportTick } from './hooks';
@@ -16,7 +17,6 @@ interface Props {
 }
 
 const BLOCKED = ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'dblclick', 'auxclick'] as const;
-const CURSOR_STYLE_ID = 'redline-cursor-style';
 
 function safeDescribe(el: Element): string {
   try {
@@ -71,9 +71,18 @@ export function PickLayer({ mode, onPick }: Props) {
       e.stopImmediatePropagation();
     };
 
+    /** Abandon an in-progress drag so no selection box is left on the page. */
+    const endDrag = () => {
+      if (!dragRef.current) return;
+      dragRef.current = null;
+      setDrag(null);
+    };
+
     const onMove = (e: PointerEvent) => {
       if (eventInHost(e, host)) return;
       swallow(e);
+      // The button was released somewhere we never saw (outside the window, over an iframe).
+      if (dragRef.current && e.buttons === 0) endDrag();
       pointerRef.current = { x: e.clientX, y: e.clientY };
       if (picks) {
         const raw = pickAt(e.clientX, e.clientY, host);
@@ -102,7 +111,10 @@ export function PickLayer({ mode, onPick }: Props) {
 
     const onUp = (e: Event) => {
       const pe = e as PointerEvent;
-      if (eventInHost(e, host)) return;
+      if (eventInHost(e, host)) {
+        endDrag(); // released over our own UI: cancel instead of leaving the box stuck
+        return;
+      }
       swallow(e);
       if (area && e.type === 'pointerup' && dragRef.current) {
         const rect = normalizeRect(dragRef.current.start, { x: pe.clientX, y: pe.clientY });
@@ -142,7 +154,14 @@ export function PickLayer({ mode, onPick }: Props) {
       }
     };
 
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') endDrag();
+    };
+
     const opts = { capture: true } as const;
+    window.addEventListener('pointercancel', endDrag, opts);
+    window.addEventListener('blur', endDrag);
+    document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('pointermove', onMove, opts);
     window.addEventListener('pointerdown', onDown, opts);
     window.addEventListener('mousedown', onDown, opts);
@@ -151,6 +170,10 @@ export function PickLayer({ mode, onPick }: Props) {
     for (const t of ['click', 'dblclick', 'auxclick'] as const) window.addEventListener(t, onClick, opts);
     window.addEventListener('keydown', onKey, opts);
     return () => {
+      endDrag();
+      window.removeEventListener('pointercancel', endDrag, opts);
+      window.removeEventListener('blur', endDrag);
+      document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pointermove', onMove, opts);
       window.removeEventListener('pointerdown', onDown, opts);
       window.removeEventListener('mousedown', onDown, opts);
